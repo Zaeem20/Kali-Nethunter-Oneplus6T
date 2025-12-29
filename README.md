@@ -15,7 +15,7 @@ This workspace contains ROM, recovery, and NetHunter assets drive link for OnePl
 Here is the Drive [Folder Link](https://drive.google.com/drive/folders/164K7PJe4b6fSHYCbrofZyhAs9-mMzQrK?usp=sharing
 ) to download all files, inside of that you will find the following folders:
 
-- `Lineage_OS_22/` — LineageOS 22.2 (fajita) images
+- `Lineage_OS_22/` — LineageOS 22.2 (fajita) images + Magisk zip
 - `Oneplus/TWRP/` — TWRP image + installer zip
 - `Nethunter/` — NetHunter zips (generic + custom-kernel builds)
 - `Oneplus/MSM_(Nuclear_Reset)/` — MSM/EDL recovery tooling (use with caution)

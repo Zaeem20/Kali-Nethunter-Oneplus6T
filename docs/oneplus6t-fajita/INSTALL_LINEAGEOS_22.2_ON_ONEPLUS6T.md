@@ -13,6 +13,144 @@ This guide is written for the contents of this repo and targets:
 
 ---
 
+## Table of Contents
+
+- [Understanding the A/B Partition Scheme](#understanding-the-ab-partition-scheme)
+- [0) Files you already have in this repo](#0-files-you-already-have-in-this-repo)
+- [1) PC prerequisites (Windows)](#1-pc-prerequisites-windows)
+- [2) Phone prerequisites](#2-phone-prerequisites)
+- [3) Verify you’re really on OnePlus 6T (fajita)](#3-verify-youre-really-on-oneplus-6t-fajita)
+- [4) Unlock the bootloader](#4-unlock-the-bootloader)
+- [5) Boot TWRP (recovery)](#5-boot-twrp-recovery)
+- [6) (Crucial) Install OxygenOS 11.2.2 to BOTH slots (A/B) via ADB sideload](#6-crucial-install-oxygenos-1122-to-both-slots-ab-via-adb-sideload)
+- [7) (Optional) Make TWRP permanent](#7-optional-make-twrp-permanent)
+- [8) Install LineageOS 22.2](#8-install-lineageos-222)
+- [9) Install Magisk (Root)](#9-install-magisk-root)
+- [10) Reboot and first boot](#10-reboot-and-first-boot)
+
+---
+
+## Understanding the A/B Partition Scheme
+
+The OnePlus 6T uses an **A/B (seamless) partition scheme**, which differs from traditional A-only Android devices. Understanding this is important for successful flashing.
+
+### What is A/B Partitioning?
+
+A/B devices have two copies of critical partitions (called **Slot A** and **Slot B**). The system runs from one slot while the other remains inactive. This allows:
+
+- **Seamless updates**: Updates install to the inactive slot in the background
+- **Rollback protection**: If an update fails, the device boots back to the working slot
+- **No dedicated recovery partition**: Recovery lives inside the `boot` partition
+
+### OnePlus 6T Partition Layout
+
+<table>
+  <thead>
+    <tr>
+      <th>Partition</th>
+      <th>A/B (Duplicated)</th>
+      <th>Shared (Single)</th>
+      <th>Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>boot</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>Kernel + ramdisk + recovery</td>
+    </tr>
+    <tr>
+      <td><code>system</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>Android OS, system apps</td>
+    </tr>
+    <tr>
+      <td><code>vendor</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>Hardware-specific HALs/blobs</td>
+    </tr>
+    <tr>
+      <td><code>dtbo</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>Device tree blob overlays</td>
+    </tr>
+    <tr>
+      <td><code>vbmeta</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>Verified boot metadata</td>
+    </tr>
+    <tr>
+      <td><code>modem</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>Cellular radio firmware</td>
+    </tr>
+    <tr>
+      <td><code>bluetooth</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>Bluetooth firmware</td>
+    </tr>
+    <tr>
+      <td><code>dsp</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>Digital signal processor firmware</td>
+    </tr>
+    <tr>
+      <td><code>xbl</code> / <code>abl</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>Bootloader components</td>
+    </tr>
+    <tr>
+      <td><code>tz</code> / <code>hyp</code></td>
+      <td align="center">✅</td>
+      <td align="center"></td>
+      <td>TrustZone / Hypervisor</td>
+    </tr>
+    <tr>
+      <td><code>userdata</code></td>
+      <td align="center"></td>
+      <td align="center">✅</td>
+      <td>User data, apps, internal storage</td>
+    </tr>
+    <tr>
+      <td><code>persist</code></td>
+      <td align="center"></td>
+      <td align="center">✅</td>
+      <td>Device-specific calibration data</td>
+    </tr>
+    <tr>
+      <td><code>misc</code></td>
+      <td align="center"></td>
+      <td align="center">✅</td>
+      <td>Bootloader messaging</td>
+    </tr>
+    <tr>
+      <td><code>op2</code></td>
+      <td align="center"></td>
+      <td align="center">✅</td>
+      <td>OnePlus factory partition</td>
+    </tr>
+  </tbody>
+</table>
+
+### Key Points for Flashing
+
+- **No separate recovery partition**: On A/B devices, recovery is embedded in `boot`. This is why we use `fastboot boot <recovery.img>` to temporarily boot TWRP.
+- **Flashing affects one slot**: When you flash via fastboot, it goes to the current active slot unless you specify `_a` or `_b` suffix.
+- **Both slots should match**: For stability, both slots should have consistent firmware. This guide covers flashing OxygenOS to both slots first.
+- **Slot switching**: Use `fastboot set_active a` or `fastboot set_active b` to switch slots.
+- **Check current slot**: Use `fastboot getvar current-slot` to see which slot is active.
+
+---
+
 ## 0) Files you already have in this repo
 
 ### LineageOS 22.2 (fajita)
@@ -22,6 +160,7 @@ Located in `Lineage_OS_22/`:
 - `boot.img`
 - `dtbo.img`
 - `vbmeta.img`
+- `Magisk.zip`
 
 ### Recovery (TWRP)
 Located in `Oneplus/TWRP/`:
@@ -260,6 +399,51 @@ If your display freezes in recovery, use the temporary-boot recovery method inst
 Then:
 
 - Wipe cache/dalvik when prompted
+
+---
+
+## 9) Install Magisk (Root)
+
+> Important
+>
+> Install Magisk **before** rebooting into the system for the first time. This ensures root is available immediately after LineageOS boots.
+
+### Magisk zip
+
+Located in `Lineage_OS_22/`:
+
+- `Magisk.zip`
+
+### 9.1 Flash Magisk via ADB sideload (LOS Recovery)
+
+If you're in LineageOS Recovery:
+
+1. Apply Update → **ADB Sideload**
+2. On your PC:
+
+```powershell
+adb sideload Lineage_OS_22\Magisk.zip
+```
+
+3. If prompted about signature verification, choose to continue (the Magisk zip is not signed by LineageOS).
+
+### 9.2 Flash Magisk via TWRP
+
+If you're in TWRP:
+
+1. Install → select `Lineage_OS_22/Magisk.zip` → Swipe to confirm
+2. Wipe cache/dalvik when prompted
+
+---
+
+## 10) Reboot and first boot
+
 - Reboot system
 
 First boot can take 5–15 minutes.
+
+After the first boot completes:
+
+1. Open the **Magisk** app (it should be installed automatically).
+2. If Magisk prompts you to complete setup or install the full app, follow the on-screen instructions.
+3. Verify root by checking the Magisk home screen — it should show your Magisk version and "Installed" status.
